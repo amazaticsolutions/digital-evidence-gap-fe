@@ -242,7 +242,7 @@ export function ChatWorkspace() {
       {!showEvidenceList ? (
         /* Messages Area */
         <div
-          className="flex-1 overflow-y-auto px-8 py-6 bg-gray-50 dark:bg-black"
+          className="flex-1 overflow-y-auto px-8 py-6 bg-gray-50 dark:bg-[#0e0e0e]"
           ref={messagesRef}
         >
           <div className="max-w-4xl mx-auto space-y-6">

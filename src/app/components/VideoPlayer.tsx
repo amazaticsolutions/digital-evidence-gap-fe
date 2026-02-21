@@ -1,5 +1,12 @@
-import { useRef, useState } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import { useRef, useState } from "react";
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Minimize,
+} from "lucide-react";
 
 interface VideoPlayerProps {
   src: string;
@@ -67,23 +74,26 @@ export function VideoPlayer({ src, title, poster }: VideoPlayerProps) {
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   return (
-    <div ref={containerRef} className="w-full bg-black rounded-xl overflow-hidden">
+    <div
+      ref={containerRef}
+      className="w-full bg-black rounded-xl overflow-hidden"
+    >
       {title && (
         <div className="bg-gray-900 px-4 py-3 border-b border-gray-800">
           <h3 className="text-sm font-medium text-white">{title}</h3>
         </div>
       )}
-      
+
       <div className="relative group">
         <video
           ref={videoRef}
           src={src}
           poster={poster}
-          className="w-full h-auto max-h-[70vh] object-contain"
+          className="w-full h-auto max-h-[70vh] object-contain cursor-pointer"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={() => setIsPlaying(false)}
@@ -91,13 +101,17 @@ export function VideoPlayer({ src, title, poster }: VideoPlayerProps) {
         />
 
         {/* Play/Pause Overlay */}
-        <div 
+        <div
           className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
           onClick={togglePlay}
         >
           {!isPlaying && (
             <div className="bg-black/70 rounded-full p-6">
-              <Play className="w-12 h-12 text-white" strokeWidth={2} fill="white" />
+              <Play
+                className="w-12 h-12 text-white"
+                strokeWidth={2}
+                fill="white"
+              />
             </div>
           )}
         </div>
@@ -113,7 +127,7 @@ export function VideoPlayer({ src, title, poster }: VideoPlayerProps) {
             onChange={handleSeek}
             className="w-full h-1 mb-3 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
             style={{
-              background: `linear-gradient(to right, #ffffff ${(currentTime / duration) * 100}%, #4b5563 ${(currentTime / duration) * 100}%)`
+              background: `linear-gradient(to right, #ffffff ${(currentTime / duration) * 100}%, #4b5563 ${(currentTime / duration) * 100}%)`,
             }}
           />
 
@@ -122,7 +136,7 @@ export function VideoPlayer({ src, title, poster }: VideoPlayerProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={togglePlay}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
               >
                 {isPlaying ? (
                   <Pause className="w-5 h-5 text-white" strokeWidth={2} />
@@ -133,7 +147,7 @@ export function VideoPlayer({ src, title, poster }: VideoPlayerProps) {
 
               <button
                 onClick={toggleMute}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
               >
                 {isMuted ? (
                   <VolumeX className="w-5 h-5 text-white" strokeWidth={2} />
@@ -149,7 +163,7 @@ export function VideoPlayer({ src, title, poster }: VideoPlayerProps) {
 
             <button
               onClick={toggleFullscreen}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
             >
               {isFullscreen ? (
                 <Minimize className="w-5 h-5 text-white" strokeWidth={2} />

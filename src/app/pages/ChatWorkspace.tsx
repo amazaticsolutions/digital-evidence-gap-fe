@@ -1,4 +1,4 @@
-import { Send, Video, Image as ImageIcon, Mic, ChevronDown, ExternalLink, Play, Camera, Plus, ArrowLeft, Upload, Trash2, FolderOpen, ChevronRight } from 'lucide-react';
+import { Send, Mic, ChevronDown, ExternalLink, Play, Camera, Plus, ArrowLeft, Upload, FolderOpen, ChevronRight } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router';
 import { useState, useEffect, useRef } from 'react';
 import {

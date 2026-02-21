@@ -1,7 +1,3 @@
-import type { ComponentType, SVGAttributes } from 'react';
-
-type IconComponent = ComponentType<SVGAttributes<SVGElement> & { strokeWidth?: number }>;
-
 export type MediaFileType = 'video' | 'image' | 'audio' | 'document';
 export type UploadStatus = 'uploading' | 'completed' | 'error';
 

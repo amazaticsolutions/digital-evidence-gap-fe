@@ -217,28 +217,31 @@ export function ChatWorkspace() {
 
                   {/* Table Section */}
                   {message.table && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 overflow-hidden">
-                      <div className="bg-gray-50 rounded-xl overflow-hidden shadow-sm">
+                    <div className="mt-5 pt-4 border-t border-gray-200">
+                      <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-200">
                         <table className="w-full border-collapse">
-                          <thead className="bg-white">
-                            <tr>
+                          <thead>
+                            <tr className="bg-white border-b border-gray-200">
                               {message.table.headers.map((header, idx) => (
-                                <th key={idx} className="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider px-4 py-3">
+                                <th key={idx} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-5 py-4 first:pl-6 last:pr-6">
                                   {header}
                                 </th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="bg-gray-50 divide-y divide-gray-100">
+                          <tbody className="bg-gray-50">
                             {message.table.rows.map((row, idx) => (
-                              <tr key={idx} className="hover:bg-white transition-colors">
-                                <td className="text-sm text-gray-900 px-4 py-3 whitespace-nowrap">
+                              <tr 
+                                key={idx} 
+                                className={`${idx !== message.table!.rows.length - 1 ? 'border-b border-gray-200' : ''}`}
+                              >
+                                <td className="text-sm text-gray-900 px-5 py-4 whitespace-nowrap first:pl-6">
                                   {row.date}
                                 </td>
-                                <td className="text-sm text-gray-900 px-4 py-3 whitespace-nowrap font-medium">
+                                <td className="text-sm text-gray-900 px-5 py-4 whitespace-nowrap font-medium">
                                   {row.time}
                                 </td>
-                                <td className="text-sm text-gray-700 px-4 py-3 leading-relaxed">
+                                <td className="text-sm text-gray-700 px-5 py-4 leading-relaxed last:pr-6">
                                   {row.description}
                                 </td>
                               </tr>

@@ -206,19 +206,19 @@ export function NewCase() {
                   onChange={handleFileUpload}
                   className="hidden"
                 />
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 text-center hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-black transition-all cursor-pointer">
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 dark:bg-gray-900 rounded-xl p-8 text-center hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-black transition-all cursor-pointer">
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center mb-3">
                       <Upload
-                        className="w-6 h-6 text-gray-600 dark:text-gray-400"
+                        className="w-6 h-6 text-gray-600 dark:text-gray-400 "
                         strokeWidth={1.5}
                       />
                     </div>
-                    <p className="font-medium text-black dark:text-white mb-1">
+                    <p className="font-medium text-black dark:text-white  mb-1">
                       Click to upload or drag and drop
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Video, Image, Audio, or Document files
+                      Video, Image, or Document files
                     </p>
                   </div>
                 </div>

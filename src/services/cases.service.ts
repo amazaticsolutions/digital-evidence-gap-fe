@@ -283,7 +283,10 @@ export async function uploadEvidenceToGDrive(
       },
     );
 
-    console.log("[CasesService] uploadEvidenceToGDrive success:", response.data);
+    console.log(
+      "[CasesService] uploadEvidenceToGDrive success:",
+      response.data,
+    );
 
     return { data: response.data as UploadEvidenceResponse, success: true };
   } catch (error) {
@@ -314,18 +317,32 @@ export async function uploadEvidenceToGDrive(
  * Real API endpoint: DELETE ${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}
  */
 export async function deleteCase(id: string): Promise<ApiResponse<null>> {
-  // TODO: replace with →
-  //   const res = await fetch(`${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}`, { method: 'DELETE' });
-  console.debug(
-    "[CasesService] DELETE",
-    `${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}`,
-  );
+  try {
+    await axios.delete(`${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}`, {
+      headers: {
+        Authorization: `Bearer ${import.meta.env.VITE_USER_TOKEN}`,
+      },
+    });
 
-  const existing: Case[] = JSON.parse(localStorage.getItem("cases") || "[]");
-  localStorage.setItem(
-    "cases",
-    JSON.stringify(existing.filter((c) => c.id !== id)),
-  );
+    console.log("[CasesService] deleteCase success");
 
-  return { data: null, success: true };
+    return { data: null, success: true };
+  } catch (error) {
+    console.error("[CasesService] Error deleting case:", {
+      error,
+      caseId: id,
+      message: error instanceof Error ? error.message : "Unknown error",
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+      status: axios.isAxiosError(error) ? error.response?.status : undefined,
+    });
+
+    return {
+      data: null,
+      success: false,
+      message:
+        axios.isAxiosError(error) && error.response?.data?.message
+          ? error.response.data.message
+          : "An unexpected error occurred while deleting case",
+    };
+  }
 }

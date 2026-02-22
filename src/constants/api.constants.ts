@@ -27,24 +27,24 @@ export const API_ENDPOINTS = {
 
   // ── Chat / Messages ───────────────────────────────────────────────────────
   CHAT: {
-    /** GET  /api/chat/case/:caseId/  – fetch conversation history and case metadata */
-    GET_MESSAGES: (caseId: string) => `/api/chat/case/${caseId}/`,
+    /** GET  /chat/case/:caseId/  – fetch conversation history and case metadata */
+    GET_MESSAGES: (caseId: string) => `/chat/case/${caseId}/`,
 
-    /** POST /api/chat/case/:caseId/message/  – send a new message */
-    SEND_MESSAGE: (caseId: string) => `/api/chat/case/${caseId}/message/`,
+    /** POST /chat/case/:caseId/message/  – send a new message */
+    SEND_MESSAGE: (caseId: string) => `/chat/case/${caseId}/message/`,
   },
 
   // ── Evidence Files ────────────────────────────────────────────────────────
   EVIDENCE: {
-    /** GET  /api/evidence/videos/?media_type=video|image|audio  – list all evidence files by type */
+    /** GET  /evidence/videos/?media_type=video|image|audio  – list all evidence files by type */
     GET_ALL: (mediaType?: "video" | "image" | "audio") =>
-      `/api/evidence/videos/${mediaType ? `?media_type=${mediaType}` : ""}`,
+      `/evidence/videos/${mediaType ? `?media_type=${mediaType}` : ""}`,
 
-    /** POST /api/evidence/cases/upload/  – upload files to case (multipart/form-data) */
-    UPLOAD: "/api/evidence/cases/upload/",
+    /** POST /evidence/cases/upload/  – upload files to case (multipart/form-data) */
+    UPLOAD: "/evidence/cases/upload/",
 
-    /** DELETE /api/evidence/videos/:videoId/  – remove an evidence file */
-    DELETE: (videoId: string) => `/api/evidence/videos/${videoId}/`,
+    /** DELETE /evidence/videos/:videoId/  – remove an evidence file */
+    DELETE: (videoId: string) => `/evidence/videos/${videoId}/`,
 
     /** POST /evidence/gdrive/upload  – upload files directly to Google Drive (single or batch) */
     GDRIVE_UPLOAD: "/evidence/gdrive/upload",

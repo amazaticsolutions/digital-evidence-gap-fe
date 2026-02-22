@@ -1,75 +1,204 @@
-# React + TypeScript + Vite
+# EvidenceTrace.AI — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern React-based digital evidence management and investigation platform for law enforcement. Investigators can create cases, upload evidence files to Google Drive, and analyze evidence through an AI-powered chat interface.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Case Management**: Create and manage investigation cases with file uploads
+- **Evidence Upload**: Multi-file upload with progress tracking and Google Drive integration
+- **AI Chat Interface**: Chat-based evidence analysis with source citation
+- **Evidence Viewer**: View videos, images, and audio files with metadata (camera ID, timestamps, GPS)
+- **Dark Mode**: Full light/dark theme with localStorage persistence and system preference detection
+- **Responsive Design**: Sidebar navigation with multi-column layouts
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- **Framework**: React 18.3.1
+- **Language**: TypeScript 5.9.3
+- **Build Tool**: Vite 7.3.1
+- **Routing**: React Router 7.13.0
+- **Styling**: Tailwind CSS 4.1.12, Emotion, Class Variance Authority
+- **UI Components**: Radix UI, Material UI 7.3.5, Lucide React
+- **Forms**: React Hook Form 7.55.0
+- **HTTP Client**: Axios 1.13.5
+- **Charts**: Recharts 2.15.2
+- **Animations**: Motion 12.23.24
+- **Drag & Drop**: React DnD 16.0.1
+- **Notifications**: Sonner 2.0.3
+- **Testing**: Cypress 13.17.0
+- **Linting**: ESLint 9.39.1
 
-Note: This will impact Vite dev & build performances.
+## Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 22.x (via nvm)
+- npm (bundled with Node.js)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Installation
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 1. Clone the repository
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone <repository-url>
+cd digital-evidence-gap-fe
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Install Node.js 22 with nvm
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Install nvm (if not already installed)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Reload shell
+source ~/.bashrc  # or ~/.zshrc
+
+# Install and use Node.js 22
+nvm install 22
+nvm use 22
+
+# Verify installation
+node --version  # should print v22.x.x
+npm --version
 ```
+
+### 3. Install dependencies
+
+```bash
+npm install
+```
+
+### 4. Environment Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your configuration:
+
+```env
+# API Configuration
+VITE_API_BASE_URL=http://localhost:8000/api
+
+# Authentication (for development/demo)
+VITE_USER_TOKEN=your-jwt-token-here
+```
+
+## Running the Application
+
+### Development Mode
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:5173`
+
+### Production Build
+
+```bash
+npm run build
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+### Lint
+
+```bash
+npm run lint
+```
+
+## Project Structure
+
+```
+digital-evidence-gap-fe/
+│
+├── index.html                     # HTML entry point
+├── vite.config.ts                 # Vite configuration
+├── tsconfig.json                  # TypeScript configuration
+├── tsconfig.app.json              # App-specific TS config
+├── tsconfig.node.json             # Node-specific TS config
+├── eslint.config.js               # ESLint configuration
+├── postcss.config.mjs             # PostCSS configuration
+├── package.json                   # Dependencies and scripts
+├── .env                           # Environment variables (local)
+│
+├── public/                        # Static assets
+│
+└── src/
+    ├── main.tsx                   # Application entry point
+    ├── index.css                  # Global CSS
+    │
+    ├── app/
+    │   ├── App.tsx                # Root component with routing
+    │   ├── routes.tsx             # Route definitions
+    │   │
+    │   ├── layouts/
+    │   │   └── MainLayout.tsx     # Sidebar + content layout wrapper
+    │   │
+    │   ├── pages/
+    │   │   ├── NewCase.tsx        # Case creation with file upload
+    │   │   ├── PastCases.tsx      # Cases list with search
+    │   │   └── ChatWorkspace.tsx  # Case detail, chat & evidence viewer
+    │   │
+    │   └── components/
+    │       ├── Sidebar.tsx        # Navigation sidebar with theme toggle
+    │       ├── Modal.tsx          # Generic modal wrapper
+    │       ├── MediaUploadCard.tsx # File upload card with progress
+    │       ├── EvidenceList.tsx   # Evidence file list view
+    │       ├── VideoPlayer.tsx    # Video file viewer
+    │       ├── ImageViewer.tsx    # Image file viewer
+    │       ├── figma/             # Design-aligned components
+    │       └── ui/                # 50+ headless Radix UI components
+    │
+    ├── services/
+    │   ├── cases.service.ts       # Cases API (create, list, fetch)
+    │   └── chatWorkspace.service.ts # Chat and evidence API calls
+    │
+    ├── contexts/
+    │   └── ThemeContext.tsx       # Light/dark theme provider
+    │
+    ├── hooks/
+    │   └── useTheme.ts            # Theme hook
+    │
+    ├── constants/
+    │   ├── api.constants.ts       # API endpoints and base URL
+    │   ├── newCase.constants.ts   # File upload constraints
+    │   ├── chatWorkspace.constants.ts # Mock/demo chat data
+    │   └── mediaUploadCard.constants.ts # Upload card config
+    │
+    ├── assets/
+    │   ├── logo.svg               # Dark mode logo
+    │   └── logo-light.svg         # Light mode logo
+    │
+    └── styles/
+        ├── tailwind.css           # Tailwind directives
+        ├── fonts.css              # Custom font definitions
+        └── theme.css              # CSS custom properties / theme tokens
+```
+
+## API Integration
+
+The frontend communicates with the Digital Evidence Gap API backend. Key endpoints used:
+
+| Action | Method | Endpoint |
+|---|---|---|
+| List cases | GET | `/search/cases/` |
+| Create case | POST | `/search/cases/` |
+| Get case details | GET | `/search/cases/:id/` |
+| Upload evidence | POST | `/evidence/gdrive/upload/` |
+| List evidence | GET | `/cases/:caseId/evidence/` |
+| Delete evidence | DELETE | `/cases/:caseId/evidence/:id/` |
+| Get messages | GET | `/cases/:caseId/messages/` |
+| Send message | POST | `/cases/:caseId/messages/` |
+
+## Development Notes
+
+- **State management**: Component-level React hooks (no Redux/Zustand)
+- **Theme persistence**: Stored in `localStorage`, with system preference fallback on first load
+- **Demo mode**: Services include mock data fallbacks; replace with live API calls by updating `src/services/`
+- **React Compiler**: Enabled via Babel plugin — may affect Vite dev and build performance

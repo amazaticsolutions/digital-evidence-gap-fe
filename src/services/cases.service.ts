@@ -11,12 +11,24 @@
  *   3. Keep the same return-type signatures so the components need zero changes.
  */
 
-import { BASE_URL, API_ENDPOINTS } from '../constants/api.constants';
-import {
-  DEMO_CASE,
-  ADDITIONAL_DEMO_CASES,
-  type DemoCase as Case,
-} from '../constants/pastCases.constants';
+export interface CasesInterface {
+  id: string;
+  case_id: string;
+  title: string;
+  description: string;
+  user_id: number;
+  assigned_to_user_id: number | null;
+  assigned_at: string | null;
+  evidence_count: number;
+  evidence_ids: string[];
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+import axios from "axios";
+import { BASE_URL, API_ENDPOINTS } from "../constants/api.constants";
+import { type DemoCase as Case } from "../constants/pastCases.constants";
 
 // ── Shared response wrapper ──────────────────────────────────────────────────
 
@@ -36,18 +48,29 @@ export interface ApiResponse<T> {
  *
  * Real API endpoint: GET ${BASE_URL}${API_ENDPOINTS.CASES.GET_ALL}
  */
-export async function getCases(): Promise<ApiResponse<Case[]>> {
-  // TODO: replace with → const res = await fetch(`${BASE_URL}${API_ENDPOINTS.CASES.GET_ALL}`);
-  console.debug('[CasesService] GET', `${BASE_URL}${API_ENDPOINTS.CASES.GET_ALL}`);
+export async function getCases(): Promise<ApiResponse<CasesInterface[]>> {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}${API_ENDPOINTS.CASES.GET_ALL}`,
+      {
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_USER_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-  const storedCases: Case[] = JSON.parse(localStorage.getItem('cases') || '[]');
-  const hasDemoCase = storedCases.some((c) => c.id === DEMO_CASE.id);
+    console.log(response.data);
 
-  const allCases = hasDemoCase
-    ? storedCases
-    : [...storedCases, ...ADDITIONAL_DEMO_CASES, DEMO_CASE];
-
-  return { data: allCases, success: true };
+    return { data: response.data.cases as CasesInterface[], success: true };
+  } catch (error) {
+    console.error("[CasesService] Unexpected error:", error);
+    return {
+      data: [],
+      success: false,
+      message: "An unexpected error occurred while fetching cases",
+    };
+  }
 }
 
 // ─── GET /cases/:id ──────────────────────────────────────────────────────────
@@ -57,14 +80,65 @@ export async function getCases(): Promise<ApiResponse<Case[]>> {
  *
  * Real API endpoint: GET ${BASE_URL}${API_ENDPOINTS.CASES.GET_BY_ID(id)}
  */
-export async function getCaseById(id: string): Promise<ApiResponse<Case | null>> {
-  // TODO: replace with → const res = await fetch(`${BASE_URL}${API_ENDPOINTS.CASES.GET_BY_ID(id)}`);
-  console.debug('[CasesService] GET', `${BASE_URL}${API_ENDPOINTS.CASES.GET_BY_ID(id)}`);
+export async function getCaseById(
+  id: string,
+): Promise<ApiResponse<Case | null>> {
+  console.log("[CasesService] Starting getCaseById request...", {
+    url: `${BASE_URL}${API_ENDPOINTS.CASES.GET_BY_ID(id)}`,
+    caseId: id,
+    baseUrl: BASE_URL,
+    token: import.meta.env.VITE_USER_TOKEN ? "Token present" : "No token",
+  });
 
-  const { data: cases } = await getCases();
-  const found = cases.find((c) => c.id === id) ?? null;
+  try {
+    const response = await axios.get(
+      `${BASE_URL}${API_ENDPOINTS.CASES.GET_BY_ID(id)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_USER_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-  return { data: found, success: !!found };
+    console.log("[CasesService] getCaseById success:", response.data);
+
+    // Map API response to Case format
+    const caseData: Case = {
+      id: response.data.id,
+      title: response.data.title,
+      description: response.data.description,
+      mediaCount: response.data.evidence_count || 0,
+      uploadProgress: 100,
+      status:
+        response.data.status === "active" ? "completed" : response.data.status,
+      createdAt: response.data.created_at,
+    };
+
+    return { data: caseData, success: true };
+  } catch (error) {
+    console.error("[CasesService] Error fetching case by ID:", {
+      error,
+      caseId: id,
+      message: error instanceof Error ? error.message : "Unknown error",
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+      status: axios.isAxiosError(error) ? error.response?.status : undefined,
+    });
+
+    // Return null for 404 errors (case not found)
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return { data: null, success: false, message: "Case not found" };
+    }
+
+    return {
+      data: null,
+      success: false,
+      message:
+        axios.isAxiosError(error) && error.response?.data?.message
+          ? error.response.data.message
+          : "An unexpected error occurred while fetching case",
+    };
+  }
 }
 
 // ─── POST /cases ─────────────────────────────────────────────────────────────
@@ -82,30 +156,55 @@ export interface CreateCasePayload {
  * Real API endpoint: POST ${BASE_URL}${API_ENDPOINTS.CASES.CREATE}
  */
 export async function createCase(
-  payload: CreateCasePayload
+  payload: CreateCasePayload,
 ): Promise<ApiResponse<Case>> {
-  // TODO: replace with →
-  //   const res = await fetch(`${BASE_URL}${API_ENDPOINTS.CASES.CREATE}`, {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify(payload),
-  //   });
-  console.debug('[CasesService] POST', `${BASE_URL}${API_ENDPOINTS.CASES.CREATE}`, payload);
+  try {
+    const response = await axios.post(
+      `${BASE_URL}${API_ENDPOINTS.CASES.CREATE}`,
+      {
+        title: payload.title,
+        description: payload.description,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_USER_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-  const newCase: Case = {
-    id: Math.random().toString(36).substr(2, 9),
-    title: payload.title,
-    description: payload.description,
-    mediaCount: payload.mediaCount,
-    uploadProgress: payload.uploadProgress,
-    status: payload.uploadProgress === 100 ? 'completed' : 'processing',
-    createdAt: new Date().toISOString(),
-  };
+    console.log("[CasesService] createCase success:", response.data);
 
-  const existing: Case[] = JSON.parse(localStorage.getItem('cases') || '[]');
-  localStorage.setItem('cases', JSON.stringify([newCase, ...existing]));
+    // Map API response to Case format
+    const newCase: Case = {
+      id: response.data.id,
+      title: response.data.title,
+      description: response.data.description,
+      mediaCount: response.data.evidence_count || 0,
+      uploadProgress: 100,
+      status:
+        response.data.status === "active" ? "completed" : response.data.status,
+      createdAt: response.data.created_at,
+    };
 
-  return { data: newCase, success: true };
+    return { data: newCase, success: true };
+  } catch (error) {
+    console.error("[CasesService] Error creating case:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+      status: axios.isAxiosError(error) ? error.response?.status : undefined,
+    });
+
+    return {
+      data: {} as Case,
+      success: false,
+      message:
+        axios.isAxiosError(error) && error.response?.data?.message
+          ? error.response.data.message
+          : "An unexpected error occurred while creating case",
+    };
+  }
 }
 
 // ─── DELETE /cases/:id ───────────────────────────────────────────────────────
@@ -118,10 +217,16 @@ export async function createCase(
 export async function deleteCase(id: string): Promise<ApiResponse<null>> {
   // TODO: replace with →
   //   const res = await fetch(`${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}`, { method: 'DELETE' });
-  console.debug('[CasesService] DELETE', `${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}`);
+  console.debug(
+    "[CasesService] DELETE",
+    `${BASE_URL}${API_ENDPOINTS.CASES.DELETE(id)}`,
+  );
 
-  const existing: Case[] = JSON.parse(localStorage.getItem('cases') || '[]');
-  localStorage.setItem('cases', JSON.stringify(existing.filter((c) => c.id !== id)));
+  const existing: Case[] = JSON.parse(localStorage.getItem("cases") || "[]");
+  localStorage.setItem(
+    "cases",
+    JSON.stringify(existing.filter((c) => c.id !== id)),
+  );
 
   return { data: null, success: true };
 }

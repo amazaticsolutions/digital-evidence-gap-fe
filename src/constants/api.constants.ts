@@ -5,25 +5,24 @@
  * All endpoint helpers are pure functions so path params stay type-safe.
  */
 
-export const BASE_URL = import.meta.env.VITE_BASE_URL ;
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const API_ENDPOINTS = {
   // ── Cases ────────────────────────────────────────────────────────────────
   CASES: {
     /** GET  /cases  – list all cases */
-    GET_ALL: '/cases',
-
+    GET_ALL: "/search/cases",
     /** GET  /cases/:id  – single case detail */
-    GET_BY_ID: (id: string) => `/cases/${id}`,
+    GET_BY_ID: (id: string) => `/search/cases/${id}`,
 
     /** POST /cases  – create a new case */
-    CREATE: '/cases',
+    CREATE: "/search/cases",
 
     /** PUT  /cases/:id  – update an existing case */
-    UPDATE: (id: string) => `/cases/${id}`,
+    UPDATE: (id: string) => `/search/cases/${id}`,
 
     /** DELETE /cases/:id  – delete a case */
-    DELETE: (id: string) => `/cases/${id}`,
+    DELETE: (id: string) => `/search/cases/${id}`,
   },
 
   // ── Chat / Messages ───────────────────────────────────────────────────────

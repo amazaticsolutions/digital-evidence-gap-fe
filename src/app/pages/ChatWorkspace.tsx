@@ -10,19 +10,21 @@ import {
   Upload,
   FolderOpen,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router";
 import { useState, useEffect, useRef } from "react";
 import {
   getMessages,
-  getEvidenceFiles,
-  deleteEvidenceFile,
   getCaseMeta,
   sendMessage,
+  uploadFiles,
   type Message,
-  type EvidenceFile,
   type CaseMeta,
+  type MediaItem,
+  type UploadedFile,
 } from "../../services/chatWorkspace.service";
+import type { EvidenceFile } from "../components/EvidenceList";
 import { Modal } from "../components/Modal";
 import { VideoPlayer } from "../components/VideoPlayer";
 import { ImageViewer } from "../components/ImageViewer";
@@ -32,7 +34,6 @@ export function ChatWorkspace() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [caseMeta, setCaseMeta] = useState<CaseMeta | null>(null);
   const [input, setInput] = useState("");
   const [expandedSources, setExpandedSources] = useState<Set<string>>(
@@ -40,6 +41,8 @@ export function ChatWorkspace() {
   );
   const [showUploadDropdown, setShowUploadDropdown] = useState(false);
   const [showEvidenceList, setShowEvidenceList] = useState(false);
+  const [uploadedMedia, setUploadedMedia] = useState<MediaItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [selectedSource, setSelectedSource] = useState<{
     filename: string;
     type: "video" | "image" | "audio";
@@ -58,14 +61,6 @@ export function ChatWorkspace() {
     if (!id) return;
     getMessages(id).then((res) => {
       if (res.success) setMessages(res.data);
-    });
-  }, [id]);
-
-  // Load evidence files from service
-  useEffect(() => {
-    if (!id) return;
-    getEvidenceFiles(id).then((res) => {
-      if (res.success) setEvidenceFiles(res.data);
     });
   }, [id]);
 
@@ -115,33 +110,69 @@ export function ChatWorkspace() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !id) return;
+    if ((!input.trim() && uploadedMedia.length === 0) || !id) return;
+
     const content = input.trim();
     setInput("");
-    const res = await sendMessage(id, { content });
+
+    // Send message with uploaded media URLs
+    const res = await sendMessage(id, {
+      content,
+      media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
+    });
+
     if (res.success) {
       setMessages((prev) => [...prev, res.data]);
+      // Clear uploaded media after sending
+      setUploadedMedia([]);
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      console.log("Files uploaded:", files);
-      setShowUploadDropdown(false);
+    if (!files || files.length === 0 || !id) return;
+
+    setShowUploadDropdown(false);
+    setIsUploading(true);
+
+    try {
+      // Convert FileList to File array
+      const fileArray = Array.from(files);
+
+      // Upload files to backend
+      const uploadRes = await uploadFiles(id, fileArray);
+
+      if (uploadRes.success && uploadRes.data.uploaded_files.length > 0) {
+        // Convert uploaded files to MediaItem format with all required fields
+        const mediaItems: MediaItem[] = uploadRes.data.uploaded_files.map(
+          (file: UploadedFile) => ({
+            type: file.media_type,
+            url: file.gdrive_url,
+            description: file.filename,
+            filename: file.filename,
+            file_size: file.file_size,
+            evidence_id: file.evidence_id,
+          }),
+        );
+
+        // Store the uploaded media URLs to attach to next message
+        setUploadedMedia(mediaItems);
+
+        console.log("Files uploaded successfully:", mediaItems);
+      } else {
+        console.error("File upload failed:", uploadRes.message);
+        alert("Failed to upload files. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      alert("An error occurred while uploading files.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const getCaseTitle = () => caseMeta?.title ?? "Loading...";
   const getEvidenceCount = () => caseMeta?.evidenceCount ?? "—";
-
-  const handleDeleteEvidence = async (evidenceId: string) => {
-    if (!id) return;
-    const res = await deleteEvidenceFile(id, evidenceId);
-    if (res.success) {
-      setEvidenceFiles((prev) => prev.filter((f) => f.id !== evidenceId));
-    }
-  };
 
   const getFileTypeFromName = (
     filename: string,
@@ -224,9 +255,7 @@ export function ChatWorkspace() {
                     className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors"
                     strokeWidth={2}
                   />
-                  <span className="font-medium">
-                    {getEvidenceCount()} analyzed
-                  </span>
+                  <span className="font-medium">{getEvidenceCount()}</span>
                   <ChevronRight
                     className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover:text-black dark:group-hover:text-white transition-all group-hover:translate-x-0.5"
                     strokeWidth={2}
@@ -260,11 +289,70 @@ export function ChatWorkspace() {
                     {message.content}
                   </p>
 
+                  {/* Media attachments from API */}
+                  {message.media && message.media.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {message.media.map((mediaItem, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 border border-gray-200 dark:border-gray-800"
+                        >
+                          <div className="flex items-center gap-3">
+                            {mediaItem.type === "video" && (
+                              <Play
+                                className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                                strokeWidth={2}
+                              />
+                            )}
+                            {mediaItem.type === "image" && (
+                              <Camera
+                                className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                                strokeWidth={2}
+                              />
+                            )}
+                            {mediaItem.type === "audio" && (
+                              <Mic
+                                className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                                strokeWidth={2}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-black dark:text-white">
+                                {mediaItem.description ||
+                                  `${mediaItem.type} attachment`}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setSelectedSource({
+                                    filename:
+                                      mediaItem.description ||
+                                      `${mediaItem.type} file`,
+                                    cameraId: "Evidence",
+                                    timestamp: message.timestamp,
+                                    date: new Date(
+                                      message.timestamp,
+                                    ).toLocaleDateString(),
+                                    type: mediaItem.type,
+                                    url: mediaItem.url,
+                                  });
+                                  setShowSourceModal(true);
+                                }}
+                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                View {mediaItem.type}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {message.timestamp && (
                     <p
                       className={`text-xs mt-3 ${message.type === "user" ? "text-gray-300 dark:text-gray-700" : "text-gray-500 dark:text-gray-400"}`}
                     >
-                      {message.timestamp}
+                      {new Date(message.timestamp).toLocaleString()}
                     </p>
                   )}
 
@@ -375,9 +463,7 @@ export function ChatWorkspace() {
       ) : (
         /* Evidence List Area */
         <EvidenceList
-          evidenceFiles={evidenceFiles}
           onBack={() => setShowEvidenceList(false)}
-          onDeleteEvidence={handleDeleteEvidence}
           onFileClick={handleEvidenceFileClick}
         />
       )}
@@ -386,6 +472,58 @@ export function ChatWorkspace() {
       {!showEvidenceList && (
         <div className="bg-white dark:bg-black px-8 py-5 flex-shrink-0 shadow-lg border-t border-gray-200 dark:border-gray-800">
           <div className="max-w-4xl mx-auto">
+            {/* Uploaded Files Preview */}
+            {uploadedMedia.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {uploadedMedia.map((media, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
+                    {media.type === "video" && (
+                      <Play
+                        className="w-4 h-4 text-gray-600 dark:text-gray-400"
+                        strokeWidth={2}
+                      />
+                    )}
+                    {media.type === "image" && (
+                      <Camera
+                        className="w-4 h-4 text-gray-600 dark:text-gray-400"
+                        strokeWidth={2}
+                      />
+                    )}
+                    {media.type === "audio" && (
+                      <Mic
+                        className="w-4 h-4 text-gray-600 dark:text-gray-400"
+                        strokeWidth={2}
+                      />
+                    )}
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {media.description}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setUploadedMedia((prev) =>
+                          prev.filter((_, i) => i !== idx),
+                        )
+                      }
+                      className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                    >
+                      <X className="w-4 h-4" strokeWidth={2} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Uploading indicator */}
+            {isUploading && (
+              <div className="mb-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="animate-spin h-4 w-4 border-2 border-gray-600 dark:border-gray-400 border-t-transparent rounded-full"></div>
+                <span>Uploading files...</span>
+              </div>
+            )}
+
             {/* Input Field with Embedded Plus Button and Send */}
             <div className="relative flex items-center gap-3">
               <div className="relative flex-1">
@@ -393,20 +531,26 @@ export function ChatWorkspace() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && !isUploading && handleSend()
+                  }
                   placeholder="Ask about evidence, request analysis, or search for specific details..."
                   className="w-full pl-5 pr-16 py-3.5 bg-gray-50 dark:bg-gray-900 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition-all shadow-md border border-gray-200 dark:border-gray-800"
+                  disabled={isUploading}
                 />
                 <button
                   onClick={() => setShowUploadDropdown(true)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 text-black dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm z-10 cursor-pointer"
+                  disabled={isUploading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 bg-white dark:bg-gray-800 text-black dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm z-10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4.5 h-4.5" strokeWidth={2} />
                 </button>
               </div>
               <button
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={
+                  (!input.trim() && uploadedMedia.length === 0) || isUploading
+                }
                 className="flex items-center justify-center w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
               >
                 <Send className="w-5 h-5" strokeWidth={2} />

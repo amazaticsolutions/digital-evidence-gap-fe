@@ -25,6 +25,8 @@ export function NewCase() {
   const [caseDescription, setCaseDescription] = useState("");
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreatingCase, setIsCreatingCase] = useState(false);
+  const [createCaseError, setCreateCaseError] = useState<string | null>(null);
 
   // Simulate file upload with progress
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,23 +112,47 @@ export function NewCase() {
   const handleCreateCase = async () => {
     if (!caseTitle.trim()) return;
 
-    // Calculate overall upload progress
-    const totalFiles = mediaFiles.length;
-    const completedFiles = mediaFiles.filter(
-      (f) => f.status === "completed",
-    ).length;
-    const overallProgress =
-      totalFiles > 0 ? Math.floor((completedFiles / totalFiles) * 100) : 100;
+    setIsCreatingCase(true);
+    setCreateCaseError(null);
 
-    await createCase({
-      title: caseTitle,
-      description: caseDescription,
-      mediaCount: totalFiles,
-      uploadProgress: overallProgress,
-    });
+    try {
+      // Calculate overall upload progress
+      const totalFiles = mediaFiles.length;
+      const completedFiles = mediaFiles.filter(
+        (f) => f.status === "completed",
+      ).length;
+      const overallProgress =
+        totalFiles > 0 ? Math.floor((completedFiles / totalFiles) * 100) : 100;
 
-    // Navigate to past cases to see the processing status
-    navigate("/past-cases");
+      console.log("Creating case with details:", {
+        title: caseTitle,
+        description: caseDescription,
+        mediaCount: totalFiles,
+        uploadProgress: overallProgress,
+      });
+
+      const response = await createCase({
+        title: caseTitle,
+        description: caseDescription,
+        mediaCount: totalFiles,
+        uploadProgress: overallProgress,
+      });
+
+      if (response.success) {
+        console.log("Case created successfully:", response.data);
+        // Navigate to past cases to see the new case
+        navigate("/past-cases");
+      } else {
+        setCreateCaseError(response.message || "Failed to create case");
+      }
+    } catch (error) {
+      console.error("Error creating case:", error);
+      setCreateCaseError(
+        "An unexpected error occurred while creating the case",
+      );
+    } finally {
+      setIsCreatingCase(false);
+    }
   };
 
   const uploadedCount = mediaFiles.filter(
@@ -137,87 +163,87 @@ export function NewCase() {
     totalCount > 0 ? Math.floor((uploadedCount / totalCount) * 100) : 0;
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="max-w-5xl mx-auto p-8">
+    <div className='flex-1 overflow-auto'>
+      <div className='max-w-5xl mx-auto p-8'>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-black dark:text-white mb-2">
+        <div className='mb-8'>
+          <h1 className='text-3xl font-semibold text-black dark:text-white mb-2'>
             Create New Case
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className='text-gray-600 dark:text-gray-400'>
             Add case details and upload evidence files to begin investigation
           </p>
         </div>
 
         {/* Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
           {/* Left Column - Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className='lg:col-span-2 space-y-6'>
             {/* Case Details Card */}
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-              <h2 className="font-semibold text-black dark:text-white mb-5">
+            <div className='bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6'>
+              <h2 className='font-semibold text-black dark:text-white mb-5'>
                 Case Details
               </h2>
 
-              <div className="space-y-5">
+              <div className='space-y-5'>
                 <div>
-                  <label className="block text-sm font-medium text-black dark:text-white mb-2">
-                    Case Title <span className="text-red-500">*</span>
+                  <label className='block text-sm font-medium text-black dark:text-white mb-2'>
+                    Case Title <span className='text-red-500'>*</span>
                   </label>
                   <input
-                    type="text"
+                    type='text'
                     value={caseTitle}
                     onChange={(e) => setCaseTitle(e.target.value)}
-                    placeholder="Enter case title"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all"
+                    placeholder='Enter case title'
+                    className='w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all'
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-black dark:text-white mb-2">
+                  <label className='block text-sm font-medium text-black dark:text-white mb-2'>
                     Description{" "}
-                    <span className="text-xs text-gray-400 dark:text-gray-500 font-normal">
+                    <span className='text-xs text-gray-400 dark:text-gray-500 font-normal'>
                       (Optional)
                     </span>
                   </label>
                   <textarea
                     value={caseDescription}
                     onChange={(e) => setCaseDescription(e.target.value)}
-                    placeholder="Add case notes or description..."
+                    placeholder='Add case notes or description...'
                     rows={4}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all resize-none"
+                    className='w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:border-transparent transition-all resize-none'
                   />
                 </div>
               </div>
             </div>
 
             {/* Upload Media Card */}
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6">
-              <h2 className="font-semibold text-black dark:text-white mb-5">
+            <div className='bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6'>
+              <h2 className='font-semibold text-black dark:text-white mb-5'>
                 Upload Evidence
               </h2>
 
               {/* Upload Area */}
-              <label className="block">
+              <label className='block'>
                 <input
-                  type="file"
+                  type='file'
                   multiple
                   accept={ACCEPTED_FILE_TYPES}
                   onChange={handleFileUpload}
-                  className="hidden"
+                  className='hidden'
                 />
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 dark:bg-gray-900 rounded-xl p-8 text-center hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-black transition-all cursor-pointer">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center mb-3">
+                <div className='border-2 border-dashed border-gray-300 dark:border-gray-700 dark:bg-gray-900 rounded-xl p-8 text-center hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-black transition-all cursor-pointer'>
+                  <div className='flex flex-col items-center'>
+                    <div className='w-12 h-12 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center mb-3'>
                       <Upload
-                        className="w-6 h-6 text-gray-600 dark:text-gray-400 "
+                        className='w-6 h-6 text-gray-600 dark:text-gray-400 '
                         strokeWidth={1.5}
                       />
                     </div>
-                    <p className="font-medium text-black dark:text-white  mb-1">
+                    <p className='font-medium text-black dark:text-white  mb-1'>
                       Click to upload or drag and drop
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
                       Video, Image, or Document files
                     </p>
                   </div>
@@ -226,14 +252,14 @@ export function NewCase() {
 
               {/* Uploaded Files List */}
               {mediaFiles.length > 0 && (
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium text-black dark:text-white">
+                <div className='mt-6 space-y-3'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <h3 className='font-medium text-black dark:text-white'>
                       Uploaded Files ({mediaFiles.length})
                     </h3>
                     {isUploading && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <div className="w-2 h-2 bg-black dark:bg-white rounded-full animate-pulse" />
+                      <div className='flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400'>
+                        <div className='w-2 h-2 bg-black dark:bg-white rounded-full animate-pulse' />
                         <span>Processing {overallProgress}%</span>
                       </div>
                     )}
@@ -251,39 +277,39 @@ export function NewCase() {
           </div>
 
           {/* Right Column - Summary & Actions */}
-          <div className="space-y-6">
+          <div className='space-y-6'>
             {/* Summary Card */}
-            <div className="bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sticky top-8">
-              <h3 className="font-semibold text-black dark:text-white mb-4">
+            <div className='bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sticky top-8'>
+              <h3 className='font-semibold text-black dark:text-white mb-4'>
                 Summary
               </h3>
 
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-800">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+              <div className='space-y-4 mb-6'>
+                <div className='flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-800'>
+                  <span className='text-sm text-gray-600 dark:text-gray-400'>
                     Case Title
                   </span>
-                  <span className="text-sm font-medium text-black dark:text-white">
+                  <span className='text-sm font-medium text-black dark:text-white'>
                     {caseTitle || (
-                      <span className="text-gray-400 dark:text-gray-500">
+                      <span className='text-gray-400 dark:text-gray-500'>
                         Not set
                       </span>
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-800">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                <div className='flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-800'>
+                  <span className='text-sm text-gray-600 dark:text-gray-400'>
                     Evidence Files
                   </span>
-                  <span className="text-sm font-medium text-black dark:text-white">
+                  <span className='text-sm font-medium text-black dark:text-white'>
                     {mediaFiles.length}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                <div className='flex justify-between items-center'>
+                  <span className='text-sm text-gray-600 dark:text-gray-400'>
                     Upload Status
                   </span>
-                  <span className="text-sm font-medium text-black dark:text-white">
+                  <span className='text-sm font-medium text-black dark:text-white'>
                     {uploadedCount}/{totalCount} Complete
                   </span>
                 </div>
@@ -291,17 +317,17 @@ export function NewCase() {
 
               {/* Info Boxes */}
               {isUploading && (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-4">
-                  <div className="flex gap-3">
+                <div className='bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-4'>
+                  <div className='flex gap-3'>
                     <AlertCircle
-                      className="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5"
+                      className='w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5'
                       strokeWidth={2}
                     />
                     <div>
-                      <p className="text-sm text-amber-900 dark:text-amber-300 font-medium mb-1">
+                      <p className='text-sm text-amber-900 dark:text-amber-300 font-medium mb-1'>
                         Upload in Progress
                       </p>
-                      <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                      <p className='text-xs text-amber-700 dark:text-amber-400 leading-relaxed'>
                         You can create the case now. Processing will continue in
                         background.
                       </p>
@@ -311,19 +337,39 @@ export function NewCase() {
               )}
 
               {!isUploading && mediaFiles.length > 0 && (
-                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-4">
-                  <div className="flex gap-3">
+                <div className='bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-4'>
+                  <div className='flex gap-3'>
                     <CheckCircle
-                      className="w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5"
+                      className='w-5 h-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5'
                       strokeWidth={2}
                     />
                     <div>
-                      <p className="text-sm text-green-900 dark:text-green-300 font-medium mb-1">
+                      <p className='text-sm text-green-900 dark:text-green-300 font-medium mb-1'>
                         Ready to Create
                       </p>
-                      <p className="text-xs text-green-700 dark:text-green-400 leading-relaxed">
+                      <p className='text-xs text-green-700 dark:text-green-400 leading-relaxed'>
                         All files uploaded successfully. You can now create the
                         case.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {createCaseError && (
+                <div className='bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-4'>
+                  <div className='flex gap-3'>
+                    <AlertCircle
+                      className='w-5 h-5 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5'
+                      strokeWidth={2}
+                    />
+                    <div>
+                      <p className='text-sm text-red-900 dark:text-red-300 font-medium mb-1'>
+                        Error Creating Case
+                      </p>
+                      <p className='text-xs text-red-700 dark:text-red-400 leading-relaxed'>
+                        {createCaseError}
                       </p>
                     </div>
                   </div>
@@ -333,13 +379,12 @@ export function NewCase() {
               {/* Create Button */}
               <button
                 onClick={handleCreateCase}
-                disabled={!caseTitle.trim()}
-                className="w-full bg-black dark:bg-white text-white dark:text-black py-3.5 rounded-xl font-medium hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black dark:disabled:hover:bg-white cursor-pointer"
-              >
-                Create Case
+                disabled={!caseTitle.trim() || isCreatingCase}
+                className='w-full bg-black dark:bg-white text-white dark:text-black py-3.5 rounded-xl font-medium hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black dark:disabled:hover:bg-white cursor-pointer'>
+                {isCreatingCase ? "Creating Case..." : "Create Case"}
               </button>
 
-              <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
+              <p className='text-xs text-gray-500 dark:text-gray-400 text-center mt-3'>
                 Case will be saved with current upload status
               </p>
             </div>

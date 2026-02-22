@@ -1,5 +1,5 @@
 import { Upload, CheckCircle, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { MediaUploadCard } from "../components/MediaUploadCard";
 import {
@@ -8,7 +8,10 @@ import {
   UPLOAD_SIMULATION_INTERVAL_MS,
   UPLOAD_SIMULATION_MAX_INCREMENT,
 } from "../../constants/newCase.constants";
-import { createCase } from "../../services/cases.service";
+import {
+  createCase,
+  uploadEvidenceToGDrive,
+} from "../../services/cases.service";
 
 interface MediaFile {
   id: string;
@@ -26,9 +29,15 @@ export function NewCase() {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isCreatingCase, setIsCreatingCase] = useState(false);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const [createCaseError, setCreateCaseError] = useState<string | null>(null);
 
-  // Simulate file upload with progress
+  // Stores actual File objects keyed by the same id used in mediaFiles state.
+  // This lets us build FormData for the evidence upload without losing the File
+  // reference after the simulated-progress animation runs.
+  const fileRefs = useRef<Map<string, File>>(new Map());
+
+  // Simulate file upload with progress and store actual File objects in fileRefs
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
@@ -43,12 +52,18 @@ export function NewCase() {
         status: "uploading",
       };
 
+      // Keep a reference to the real File object so we can build FormData later
+      fileRefs.current.set(newFile.id, file);
+
       setMediaFiles((prev) => [...prev, newFile]);
       setIsUploading(true);
 
       // Simulate upload progress
       simulateUpload(newFile.id);
     });
+
+    // Reset input so the same file can be re-selected if removed and re-added
+    event.target.value = "";
   };
 
   const simulateUpload = (fileId: string) => {
@@ -106,6 +121,7 @@ export function NewCase() {
   };
 
   const handleRemoveFile = (id: string) => {
+    fileRefs.current.delete(id);
     setMediaFiles((prev) => prev.filter((file) => file.id !== id));
   };
 
@@ -113,10 +129,11 @@ export function NewCase() {
     if (!caseTitle.trim()) return;
 
     setIsCreatingCase(true);
+    setIsUploadingEvidence(false);
     setCreateCaseError(null);
 
     try {
-      // Calculate overall upload progress
+      // ── Step 1: Create the case ──────────────────────────────────────────
       const totalFiles = mediaFiles.length;
       const completedFiles = mediaFiles.filter(
         (f) => f.status === "completed",
@@ -124,34 +141,60 @@ export function NewCase() {
       const overallProgress =
         totalFiles > 0 ? Math.floor((completedFiles / totalFiles) * 100) : 100;
 
-      console.log("Creating case with details:", {
+      const caseResponse = await createCase({
         title: caseTitle,
         description: caseDescription,
         mediaCount: totalFiles,
         uploadProgress: overallProgress,
       });
 
-      const response = await createCase({
-        title: caseTitle,
-        description: caseDescription,
-        mediaCount: totalFiles,
-        uploadProgress: overallProgress,
-      });
-
-      if (response.success) {
-        console.log("Case created successfully:", response.data);
-        // Navigate to past cases to see the new case
-        navigate("/past-cases");
-      } else {
-        setCreateCaseError(response.message || "Failed to create case");
+      if (!caseResponse.success) {
+        setCreateCaseError(caseResponse.message || "Failed to create case");
+        return;
       }
+
+      console.log("[NewCase] Case created:", caseResponse.data);
+
+      // ── Step 2: Upload evidence files if any were selected ───────────────
+      const actualFiles = Array.from(fileRefs.current.values());
+
+      if (actualFiles.length > 0) {
+        setIsCreatingCase(false);
+        setIsUploadingEvidence(true);
+
+        const caseId = caseResponse.data.id;
+        const uploadResponse = await uploadEvidenceToGDrive(
+          caseId as unknown as string,
+          actualFiles,
+        );
+
+        if (!uploadResponse.success) {
+          setCreateCaseError(
+            uploadResponse.message ||
+              "Case was created but evidence upload failed. Please try uploading files from the case page.",
+          );
+          return;
+        }
+
+        const { failed_uploads, total_files } = uploadResponse.data;
+        if (failed_uploads > 0) {
+          setCreateCaseError(
+            `Case created, but ${failed_uploads} of ${total_files} file(s) failed to upload to Google Drive. Please retry from the case page.`,
+          );
+          return;
+        }
+
+        console.log("[NewCase] Evidence uploaded:", uploadResponse.data);
+      }
+
+      // ── Both steps succeeded (or no files) — navigate ───────────────────
+      navigate("/past-cases");
     } catch (error) {
-      console.error("Error creating case:", error);
-      setCreateCaseError(
-        "An unexpected error occurred while creating the case",
-      );
+      console.error("[NewCase] Unexpected error in case creation flow:", error);
+      setCreateCaseError("An unexpected error occurred. Please try again.");
     } finally {
       setIsCreatingCase(false);
+      setIsUploadingEvidence(false);
     }
   };
 
@@ -379,13 +422,23 @@ export function NewCase() {
               {/* Create Button */}
               <button
                 onClick={handleCreateCase}
-                disabled={!caseTitle.trim() || isCreatingCase}
+                disabled={
+                  !caseTitle.trim() || isCreatingCase || isUploadingEvidence
+                }
                 className='w-full bg-black dark:bg-white text-white dark:text-black py-3.5 rounded-xl font-medium hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black dark:disabled:hover:bg-white cursor-pointer'>
-                {isCreatingCase ? "Creating Case..." : "Create Case"}
+                {isUploadingEvidence
+                  ? "Uploading Evidence..."
+                  : isCreatingCase
+                    ? "Creating Case..."
+                    : "Create Case"}
               </button>
 
               <p className='text-xs text-gray-500 dark:text-gray-400 text-center mt-3'>
-                Case will be saved with current upload status
+                {isUploadingEvidence
+                  ? "Uploading files to Google Drive…"
+                  : isCreatingCase
+                    ? "Saving case to server…"
+                    : "Case will be saved with current upload status"}
               </p>
             </div>
           </div>

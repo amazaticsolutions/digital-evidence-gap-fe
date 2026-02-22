@@ -176,8 +176,10 @@ export async function createCase(
     console.log("[CasesService] createCase success:", response.data);
 
     // Map API response to Case format
+    // Backend returns { success: true, ...doc } where doc is a Mongoose document,
+    // which includes both `_id` (ObjectId) and virtual `id` (string). Use _id as fallback.
     const newCase: Case = {
-      id: response.data.id,
+      id: response.data.id || String(response.data._id),
       title: response.data.title,
       description: response.data.description,
       mediaCount: response.data.evidence_count || 0,
@@ -200,9 +202,106 @@ export async function createCase(
       data: {} as Case,
       success: false,
       message:
-        axios.isAxiosError(error) && error.response?.data?.message
-          ? error.response.data.message
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? error.response.data.error
           : "An unexpected error occurred while creating case",
+    };
+  }
+}
+
+// ─── POST /evidence/gdrive/upload ────────────────────────────────────────────
+
+export interface EvidenceUploadResult {
+  success: boolean;
+  evidence_id: string | null;
+  filename: string;
+  file_size: number;
+  media_type: string;
+  duration: number | null;
+  storage_type: string;
+  gdrive_file_id: string | null;
+  gdrive_url: string | null;
+  status: string;
+  error?: string;
+}
+
+export interface UploadEvidenceResponse {
+  batch_id: string;
+  total_files: number;
+  successful_uploads: number;
+  failed_uploads: number;
+  evidence_ids: string[];
+  results: EvidenceUploadResult[];
+}
+
+/**
+ * Upload evidence files directly to Google Drive and link them to a case.
+ *
+ * Sends a multipart/form-data POST to POST /evidence/gdrive/upload.
+ * Each File in `files` is appended under the `files` field key.
+ *
+ * @param caseId  - The ID of the newly created case to associate evidence with.
+ * @param files   - Actual File objects selected by the user.
+ * @param camId   - Camera identifier (defaults to "default").
+ *
+ * Real API endpoint: POST ${BASE_URL}${API_ENDPOINTS.EVIDENCE.GDRIVE_UPLOAD}
+ */
+const generateCamId = (): string =>
+  `CAM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+export async function uploadEvidenceToGDrive(
+  caseId: string,
+  files: File[],
+  camId: string = generateCamId(),
+): Promise<ApiResponse<UploadEvidenceResponse>> {
+  try {
+    const formData = new FormData();
+
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+
+    formData.append("cam_id", camId);
+    formData.append("case_id", caseId);
+
+    console.log("[CasesService] uploadEvidenceToGDrive:", {
+      caseId,
+      fileCount: files.length,
+      fileNames: files.map((f) => f.name),
+      url: `${BASE_URL}${API_ENDPOINTS.EVIDENCE.GDRIVE_UPLOAD}`,
+    });
+
+    // Do NOT set Content-Type manually — axios sets it automatically with the
+    // correct multipart/form-data boundary when the body is a FormData instance.
+    const response = await axios.post(
+      `${BASE_URL}${API_ENDPOINTS.EVIDENCE.GDRIVE_UPLOAD}`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_USER_TOKEN}`,
+        },
+      },
+    );
+
+    console.log("[CasesService] uploadEvidenceToGDrive success:", response.data);
+
+    return { data: response.data as UploadEvidenceResponse, success: true };
+  } catch (error) {
+    console.error("[CasesService] Error uploading evidence to GDrive:", {
+      error,
+      caseId,
+      message: error instanceof Error ? error.message : "Unknown error",
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+      status: axios.isAxiosError(error) ? error.response?.status : undefined,
+    });
+
+    return {
+      data: {} as UploadEvidenceResponse,
+      success: false,
+      message:
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? error.response.data.error
+          : "An unexpected error occurred while uploading evidence",
     };
   }
 }

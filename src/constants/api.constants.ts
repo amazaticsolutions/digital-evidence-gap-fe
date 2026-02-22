@@ -45,5 +45,8 @@ export const API_ENDPOINTS = {
     /** DELETE /cases/:caseId/evidence/:evidenceId  – remove an evidence file */
     DELETE: (caseId: string, evidenceId: string) =>
       `/cases/${caseId}/evidence/${evidenceId}`,
+
+    /** POST /evidence/gdrive/upload  – upload files directly to Google Drive (single or batch) */
+    GDRIVE_UPLOAD: "/evidence/gdrive/upload",
   },
 } as const;

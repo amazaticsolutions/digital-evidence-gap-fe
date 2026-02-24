@@ -11,24 +11,24 @@ export const API_ENDPOINTS = {
   // ── Cases ────────────────────────────────────────────────────────────────
   CASES: {
     /** GET  /cases  – list all cases */
-    GET_ALL: "/search/cases",
+    GET_ALL: "/search/cases/",
     /** GET  /cases/:id  – single case detail */
-    GET_BY_ID: (id: string) => `/search/cases/${id}`,
+    GET_BY_ID: (id: string) => `/search/cases/${id}/`,
 
     /** POST /cases  – create a new case */
-    CREATE: "/search/cases",
+    CREATE: "/search/cases/",
 
     /** PUT  /cases/:id  – update an existing case */
-    UPDATE: (id: string) => `/search/cases/${id}`,
+    UPDATE: (id: string) => `/search/cases/${id}/`,
 
     /** DELETE /cases/:id  – delete a case */
-    DELETE: (id: string) => `/search/cases/${id}`,
+    DELETE: (id: string) => `/search/cases/${id}/`,
   },
 
   // ── Chat / Messages ───────────────────────────────────────────────────────
   CHAT: {
-    /** GET  /chat/case/:caseId/  – fetch conversation history and case metadata */
-    GET_MESSAGES: (caseId: string) => `/chat/case/${caseId}/`,
+    /** GET  /api/chat/case/:caseId/  – fetch conversation history and case metadata */
+    GET_MESSAGES: (caseId: string) => `/api/chat/case/${caseId}/`,
 
     /** POST /chat/case/:caseId/message/  – send a new message */
     SEND_MESSAGE: (caseId: string) => `/chat/case/${caseId}/message/`,
@@ -47,6 +47,9 @@ export const API_ENDPOINTS = {
     DELETE: (videoId: string) => `/evidence/videos/${videoId}/`,
 
     /** POST /evidence/gdrive/upload  – upload files directly to Google Drive (single or batch) */
-    GDRIVE_UPLOAD: "/evidence/gdrive/upload",
+    GDRIVE_UPLOAD: "/evidence/gdrive/upload/",
+
+    /** POST /evidence/rag/query/  – RAG query for evidence search */
+    RAG_QUERY: "/evidence/rag/query/",
   },
 } as const;

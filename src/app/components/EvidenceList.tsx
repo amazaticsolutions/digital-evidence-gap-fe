@@ -18,6 +18,7 @@ export interface EvidenceFile {
   uploadDate: string;
   uploadTime: string;
   thumbnail?: string;
+  url?: string;
 }
 
 interface EvidenceListProps {
@@ -30,6 +31,8 @@ export function EvidenceList({ onBack, onFileClick }: EvidenceListProps) {
     "videos",
   );
   const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch evidence files when tab changes
   useEffect(() => {
@@ -41,10 +44,18 @@ export function EvidenceList({ onBack, onFileClick }: EvidenceListProps) {
           : "audio";
 
     let isMounted = true;
+    setIsLoading(true);
+    setError(null);
 
     getEvidenceFiles(mediaType).then((res) => {
-      if (res.success && isMounted) {
+      if (!isMounted) return;
+      
+      setIsLoading(false);
+      if (res.success) {
         setEvidenceFiles(res.data);
+      } else {
+        setError(res.message || "Failed to load evidence files");
+        setEvidenceFiles([]);
       }
     });
 
@@ -136,64 +147,83 @@ export function EvidenceList({ onBack, onFileClick }: EvidenceListProps) {
 
         {/* Evidence Files */}
         <div className="space-y-4">
-          {Object.entries(groupEvidenceByDate(evidenceFiles)).map(
-            ([date, files]) => (
-              <div key={date} className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                  {date}
-                </h3>
-                {files.map((file) => (
-                  <div
-                    key={file.id}
-                    onClick={() => onFileClick?.(file)}
-                    className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer shadow-md"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200 dark:border-gray-800">
-                        {file.type === "video" && (
-                          <Video
-                            className="w-6 h-6 text-gray-600 dark:text-gray-400"
-                            strokeWidth={2}
-                          />
-                        )}
-                        {file.type === "image" && (
-                          <ImageIcon
-                            className="w-6 h-6 text-gray-600 dark:text-gray-400"
-                            strokeWidth={2}
-                          />
-                        )}
-                        {file.type === "audio" && (
-                          <Mic
-                            className="w-6 h-6 text-gray-600 dark:text-gray-400"
-                            strokeWidth={2}
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-black dark:text-white mb-2">
-                          {file.name}
-                        </p>
-                        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                          <span>{file.uploadTime}</span>
+          {isLoading ? (
+            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-8 text-center">
+              <div className="animate-spin h-8 w-8 border-4 border-gray-300 dark:border-gray-600 border-t-black dark:border-t-white rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-500 dark:text-gray-400">
+                Loading {activeTab}...
+              </p>
+            </div>
+          ) : error ? (
+            <div className="bg-white dark:bg-black border border-red-200 dark:border-red-800 rounded-xl p-8 text-center">
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          ) : evidenceFiles.length === 0 ? (
+            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                No {activeTab} found
+              </p>
+            </div>
+          ) : (
+            Object.entries(groupEvidenceByDate(evidenceFiles)).map(
+              ([date, files]) => (
+                <div key={date} className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                    {date}
+                  </h3>
+                  {files.map((file) => (
+                    <div
+                      key={file.id}
+                      onClick={() => onFileClick?.(file)}
+                      className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:shadow-lg transition-all cursor-pointer shadow-md"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 bg-gray-50 dark:bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200 dark:border-gray-800">
+                          {file.type === "video" && (
+                            <Video
+                              className="w-6 h-6 text-gray-600 dark:text-gray-400"
+                              strokeWidth={2}
+                            />
+                          )}
+                          {file.type === "image" && (
+                            <ImageIcon
+                              className="w-6 h-6 text-gray-600 dark:text-gray-400"
+                              strokeWidth={2}
+                            />
+                          )}
+                          {file.type === "audio" && (
+                            <Mic
+                              className="w-6 h-6 text-gray-600 dark:text-gray-400"
+                              strokeWidth={2}
+                            />
+                          )}
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-black dark:text-white mb-2">
+                            {file.name}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                            <span>{file.uploadTime}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEvidence(file.id);
+                          }}
+                          className="p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors group cursor-pointer"
+                        >
+                          <Trash2
+                            className="w-4.5 h-4.5 text-gray-400 group-hover:text-red-600 transition-colors"
+                            strokeWidth={2}
+                          />
+                        </button>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteEvidence(file.id);
-                        }}
-                        className="p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg transition-colors group cursor-pointer"
-                      >
-                        <Trash2
-                          className="w-4.5 h-4.5 text-gray-400 group-hover:text-red-600 transition-colors"
-                          strokeWidth={2}
-                        />
-                      </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ),
+                  ))}
+                </div>
+              ),
+            )
           )}
         </div>
       </div>

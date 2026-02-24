@@ -42,7 +42,7 @@ import {
   Maximize,
   Minimize,
 } from "lucide-react";
-import * as Slider from "@radix-ui/react-slider";
+import { convertGoogleDriveVideoUrl } from "@/utils/googleDrive";
 
 interface VideoPlayerProps {
   src: string;
@@ -68,6 +68,9 @@ export function VideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Convert Google Drive URLs to embeddable format
+  const { isGoogleDrive, embedUrl } = convertGoogleDriveVideoUrl(src);
 
   const clipStart = startTime ?? 0;
   const clipEnd = endTime ?? duration;
@@ -188,101 +191,114 @@ export function VideoPlayer({
       )}
 
       <div className="relative group">
-        <video
-          ref={videoRef}
-          src={src}
-          poster={poster}
-          className="w-full h-auto max-h-[70vh] object-contain cursor-pointer"
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onEnded={() => setIsPlaying(false)}
-          onClick={togglePlay}
-        />
-
-        {/* Play overlay */}
-        <div
-          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-          onClick={togglePlay}
-        >
-          {!isPlaying && (
-            <div className="bg-black/70 rounded-full p-6">
-              <Play
-                className="w-12 h-12 text-white"
-                strokeWidth={2}
-                fill="white"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Controls bar */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-
-          {/* Seek slider (Radix UI) — scoped to [clipStart, clipEnd] */}
-          <Slider.Root
-            className="relative flex items-center select-none touch-none w-full mb-4 h-4 cursor-pointer"
-            min={clipStart}
-            max={clipEnd > clipStart ? clipEnd : clipStart + 0.001}
-            step={0.1}
-            value={[Math.min(Math.max(currentTime, clipStart), clipEnd)]}
-            onValueChange={handleSeek}
-          >
-            <Slider.Track className="relative bg-gray-600 rounded-full h-1 flex-1">
-              <Slider.Range
-                className="absolute h-full rounded-full bg-white"
-                style={{ width: `${clipProgress}%` }}
-              />
-            </Slider.Track>
-            <Slider.Thumb
-              className="block w-3 h-3 bg-white rounded-full shadow-md hover:scale-125 focus:outline-none focus:ring-2 focus:ring-white transition-transform"
-              aria-label="Seek"
+        {isGoogleDrive ? (
+          // Google Drive videos use iframe with their own controls
+          <iframe
+            src={embedUrl}
+            className="w-full h-auto min-h-[70vh] object-contain"
+            allow="autoplay"
+            allowFullScreen
+          />
+        ) : (
+          // Regular video files use custom HTML5 video player
+          <>
+            <video
+              ref={videoRef}
+              src={embedUrl}
+              poster={poster}
+              className="w-full h-auto max-h-[70vh] object-contain cursor-pointer"
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onEnded={() => setIsPlaying(false)}
+              onClick={togglePlay}
             />
-          </Slider.Root>
 
-          {/* Buttons + time */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={togglePlay}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
+            {/* Play overlay */}
+            <div
+              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              onClick={togglePlay}
+            >
+              {!isPlaying && (
+                <div className="bg-black/70 rounded-full p-6">
+                  <Play
+                    className="w-12 h-12 text-white"
+                    strokeWidth={2}
+                    fill="white"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Controls bar */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+
+              {/* Seek slider (Radix UI) — scoped to [clipStart, clipEnd] */}
+              <Slider.Root
+                className="relative flex items-center select-none touch-none w-full mb-4 h-4 cursor-pointer"
+                min={clipStart}
+                max={clipEnd > clipStart ? clipEnd : clipStart + 0.001}
+                step={0.1}
+                value={[Math.min(Math.max(currentTime, clipStart), clipEnd)]}
+                onValueChange={handleSeek}
               >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5 text-white" strokeWidth={2} />
-                ) : (
-                  <Play className="w-5 h-5 text-white" strokeWidth={2} />
-                )}
-              </button>
+                <Slider.Track className="relative bg-gray-600 rounded-full h-1 flex-1">
+                  <Slider.Range
+                    className="absolute h-full rounded-full bg-white"
+                    style={{ width: `${clipProgress}%` }}
+                  />
+                </Slider.Track>
+                <Slider.Thumb
+                  className="block w-3 h-3 bg-white rounded-full shadow-md hover:scale-125 focus:outline-none focus:ring-2 focus:ring-white transition-transform"
+                  aria-label="Seek"
+                />
+              </Slider.Root>
 
-              <button
-                onClick={toggleMute}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-              >
-                {isMuted ? (
-                  <VolumeX className="w-5 h-5 text-white" strokeWidth={2} />
-                ) : (
-                  <Volume2 className="w-5 h-5 text-white" strokeWidth={2} />
-                )}
-              </button>
+              {/* Buttons + time */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={togglePlay}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-5 h-5 text-white" strokeWidth={2} />
+                    ) : (
+                      <Play className="w-5 h-5 text-white" strokeWidth={2} />
+                    )}
+                  </button>
 
-              {/* Shows time elapsed within clip / total clip duration */}
-              <div className="text-sm text-white font-medium font-mono">
-                {formatTime(currentTime - clipStart)}&thinsp;/&thinsp;
-                {formatTime(clipDuration > 0 ? clipDuration : duration)}
+                  <button
+                    onClick={toggleMute}
+                    className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {isMuted ? (
+                      <VolumeX className="w-5 h-5 text-white" strokeWidth={2} />
+                    ) : (
+                      <Volume2 className="w-5 h-5 text-white" strokeWidth={2} />
+                    )}
+                  </button>
+
+                  {/* Shows time elapsed within clip / total clip duration */}
+                  <div className="text-sm text-white font-medium font-mono">
+                    {formatTime(currentTime - clipStart)}&thinsp;/&thinsp;
+                    {formatTime(clipDuration > 0 ? clipDuration : duration)}
+                  </div>
+                </div>
+
+                <button
+                  onClick={toggleFullscreen}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-5 h-5 text-white" strokeWidth={2} />
+                  ) : (
+                    <Maximize className="w-5 h-5 text-white" strokeWidth={2} />
+                  )}
+                </button>
               </div>
             </div>
-
-            <button
-              onClick={toggleFullscreen}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-            >
-              {isFullscreen ? (
-                <Minimize className="w-5 h-5 text-white" strokeWidth={2} />
-              ) : (
-                <Maximize className="w-5 h-5 text-white" strokeWidth={2} />
-              )}
-            </button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

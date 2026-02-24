@@ -8,7 +8,6 @@ import axios from "axios";
 import { BASE_URL, API_ENDPOINTS } from "../constants/api.constants";
 import { getCaseById } from "./cases.service";
 import {
-  MOCK_EVIDENCE_FILES,
   CASE_META,
   DEFAULT_CASE_META,
   type EvidenceFile,
@@ -167,21 +166,30 @@ export async function sendMessage(
   payload: SendMessagePayload,
 ): Promise<ApiResponse<Message>> {
   try {
-    // Transform MediaItem[] to API format with required fields
-    const apiMedia = payload.media?.map((item) => ({
-      type: item.type,
-      url: item.url,
-      filename: item.filename || item.url.split("/").pop() || "unknown",
-      description: item.description,
-      file_size: item.file_size || 0,
-      evidence_id: item.evidence_id || "",
-    }));
+    // Transform MediaItem[] to API format with ALL required fields
+    const apiMedia =
+      payload.media && payload.media.length > 0
+        ? payload.media.map((item) => ({
+            type: item.type,
+            url: item.url,
+            filename: item.filename || item.url.split("/").pop() || "unknown",
+            description: item.description || "",
+            file_size: item.file_size || 0,
+            evidence_id: item.evidence_id || "",
+          }))
+        : [];
 
+    // Build request body - always include all fields
     const requestBody: SendMessageApiRequest = {
       content: payload.content,
       role: "user",
       media: apiMedia,
     };
+
+    console.log("[ChatService] sendMessage request:", {
+      caseId,
+      requestBody,
+    });
 
     const response = await axios.post<SendMessageApiResponse>(
       `${BASE_URL}${API_ENDPOINTS.CHAT.SEND_MESSAGE(caseId)}`,
@@ -208,7 +216,12 @@ export async function sendMessage(
 
     return { data: message, success: true };
   } catch (error) {
-    console.error("[ChatService] sendMessage failed:", error);
+    console.error("[ChatService] sendMessage failed:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+      status: axios.isAxiosError(error) ? error.response?.status : undefined,
+    });
 
     // Fallback to local message creation on error
     const userMessage: Message = {
@@ -381,6 +394,7 @@ export async function getEvidenceFiles(
           hour12: true,
         }),
         thumbnail: file.thumbnail_url,
+        url: file.gdrive_url,
       };
     });
 
@@ -394,11 +408,9 @@ export async function getEvidenceFiles(
       status: axios.isAxiosError(error) ? error.response?.status : undefined,
     });
 
-    // Fallback to mock data on error
+    // Return empty array on error
     return {
-      data: MOCK_EVIDENCE_FILES.filter(
-        (file) => !mediaType || file.type === mediaType,
-      ),
+      data: [],
       success: false,
       message:
         axios.isAxiosError(error) && error.response?.data?.message
@@ -481,7 +493,7 @@ export async function getCaseMeta(
     return {
       data: {
         title: response.data.case_name,
-        evidenceCount: `${response.data.messages.length} messages`,
+        evidenceCount: `${response.data.messages.length} files`,
         description: response.data.case_description,
       },
       success: true,
@@ -507,5 +519,96 @@ export async function getCaseMeta(
     // Final fallback to constants
     const meta = CASE_META[caseId] ?? DEFAULT_CASE_META;
     return { data: meta, success: true };
+  }
+}
+
+// ─── POST /evidence/rag/query/ ───────────────────────────────────────────────
+
+export interface RAGQueryPayload {
+  case_id: string;
+  query: string;
+  top_k?: number;
+  enable_reid?: boolean;
+}
+
+export interface RAGResult {
+  _id: string;
+  cam_id: string;
+  timestamp: number;
+  score: number;
+  relevant: boolean;
+  explanation: string;
+  caption: string;
+  gdrive_url: string;
+  gps_lat?: number;
+  gps_lng?: number;
+}
+
+export interface RAGQueryResponse {
+  chat_id: string;
+  user_message_id: string;
+  assistant_message_id: string;
+  summary: string;
+  total_found: number;
+  search_method: string;
+  results: RAGResult[];
+  timeline?: any[];
+}
+
+/**
+ * Query evidence using RAG (Retrieval-Augmented Generation)
+ *
+ * Real API endpoint: POST ${BASE_URL}/api/evidence/rag/query/
+ */
+export async function ragQuery(
+  payload: RAGQueryPayload,
+): Promise<ApiResponse<RAGQueryResponse>> {
+  try {
+    const requestBody = {
+      case_id: payload.case_id,
+      query: payload.query,
+      top_k: payload.top_k ?? 10,
+      enable_reid: payload.enable_reid ?? false,
+    };
+
+    console.log("[ChatService] ragQuery request:", requestBody);
+
+    const response = await axios.post<RAGQueryResponse>(
+      `${BASE_URL}${API_ENDPOINTS.EVIDENCE.RAG_QUERY}`,
+      requestBody,
+      {
+        headers: {
+          Authorization: `Bearer ${import.meta.env.VITE_USER_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    console.log("[ChatService] ragQuery success:", response.data);
+
+    return { data: response.data, success: true };
+  } catch (error) {
+    console.error("[ChatService] ragQuery failed:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      response: axios.isAxiosError(error) ? error.response?.data : undefined,
+      status: axios.isAxiosError(error) ? error.response?.status : undefined,
+    });
+
+    return {
+      data: {
+        chat_id: "",
+        user_message_id: "",
+        assistant_message_id: "",
+        summary: "Query failed",
+        total_found: 0,
+        search_method: "error",
+        results: [],
+        timeline: [],
+      },
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to query evidence",
+    };
   }
 }

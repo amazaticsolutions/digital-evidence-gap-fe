@@ -19,10 +19,13 @@ import {
   getCaseMeta,
   sendMessage,
   uploadFiles,
+  ragQuery,
   type Message,
   type CaseMeta,
   type MediaItem,
   type UploadedFile,
+  type RAGQueryResponse,
+  type RAGResult,
 } from "../../services/chatWorkspace.service";
 import type { EvidenceFile } from "../components/EvidenceList";
 import { Modal } from "../components/Modal";
@@ -52,6 +55,8 @@ export function ChatWorkspace() {
     date: string;
   } | null>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
+  const [ragResults, setRagResults] = useState<Record<string, RAGResult[]>>({});
+  const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -110,22 +115,73 @@ export function ChatWorkspace() {
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && uploadedMedia.length === 0) || !id) return;
+    if (!input.trim() || !id || isSending) return;
 
     const content = input.trim();
     setInput("");
+    setIsSending(true);
 
-    // Send message with uploaded media URLs
-    const res = await sendMessage(id, {
+    // Create and add user message immediately for better UX
+    const userMessage: Message = {
+      id: `temp-${Date.now()}`,
+      role: "user",
+      type: "user",
       content,
+      timestamp: new Date().toISOString(),
       media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Clear uploaded media after adding to message
+    const mediaToSend = uploadedMedia.length > 0 ? uploadedMedia : undefined;
+    setUploadedMedia([]);
+
+    // Query RAG API
+    const ragRes = await ragQuery({
+      case_id: id,
+      query: content,
+      top_k: 10,
+      enable_reid: false,
     });
 
-    if (res.success) {
-      setMessages((prev) => [...prev, res.data]);
-      // Clear uploaded media after sending
-      setUploadedMedia([]);
+    if (ragRes.success && ragRes.data) {
+      const assistantMessageId = ragRes.data.assistant_message_id || `ai-${Date.now()}`;
+      
+      // Store RAG results associated with this message ID
+      setRagResults((prev) => ({
+        ...prev,
+        [assistantMessageId]: ragRes.data.results,
+      }));
+
+      // Create AI assistant message with results summary
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        role: "assistant",
+        type: "ai",
+        content: ragRes.data.summary,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Update messages: replace temp user message and add assistant response
+      setMessages((prev) => {
+        const withoutTemp = prev.filter((msg) => msg.id !== userMessage.id);
+        const realUserMessage = {
+          ...userMessage,
+          id: ragRes.data.user_message_id || Date.now().toString(),
+        };
+        return [...withoutTemp, realUserMessage, assistantMessage];
+      });
+    } else {
+      // If query failed, keep the user message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === userMessage.id ? { ...msg, id: Date.now().toString() } : msg,
+        ),
+      );
+      console.error("RAG query failed:", ragRes.message);
     }
+
+    setIsSending(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,13 +264,10 @@ export function ChatWorkspace() {
   };
 
   const handleEvidenceFileClick = (file: EvidenceFile) => {
-    // TODO: Replace with actual file URL from API
-    const mockUrl =
-      file.type === "video"
-        ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-        : file.type === "image"
-          ? "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200"
-          : "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+    if (!file.url) {
+      console.error("Evidence file has no URL:", file);
+      return;
+    }
 
     setSelectedSource({
       filename: file.name,
@@ -222,7 +275,7 @@ export function ChatWorkspace() {
       timestamp: file.uploadTime,
       date: file.uploadDate,
       type: file.type,
-      url: mockUrl,
+      url: file.url,
     });
     setShowSourceModal(true);
   };
@@ -354,6 +407,73 @@ export function ChatWorkspace() {
                     >
                       {new Date(message.timestamp).toLocaleString()}
                     </p>
+                  )}
+
+                  {/* RAG Results Section - Show for AI messages with results */}
+                  {message.type === "ai" && ragResults[message.id] && ragResults[message.id].length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                      <h4 className="text-sm font-semibold text-black dark:text-white mb-3">
+                        Found {ragResults[message.id].length} matching frames
+                      </h4>
+                      <div className="grid grid-cols-1 gap-3">
+                        {ragResults[message.id].map((result, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setSelectedSource({
+                                filename: `${result.cam_id} - Frame at ${result.timestamp}s`,
+                                cameraId: result.cam_id,
+                                timestamp: `${result.timestamp}s`,
+                                date: new Date().toLocaleDateString(),
+                                type: "video",
+                                url: result.gdrive_url,
+                              });
+                              setShowSourceModal(true);
+                            }}
+                            className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 hover:shadow-md transition-all cursor-pointer border border-gray-100 dark:border-gray-800"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Play
+                                  className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                                  strokeWidth={2}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium text-black dark:text-white">
+                                    {result.cam_id}
+                                  </span>\n                                  <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full font-medium">
+                                    Score: {result.score}%
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                                  Timestamp: {result.timestamp}s
+                                </p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                  {result.caption}
+                                </p>
+                                {result.explanation && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
+                                    {result.explanation}
+                                  </p>
+                                )}
+                                {(result.gps_lat || result.gps_lng) && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    📍 GPS: {result.gps_lat?.toFixed(4)},{" "}
+                                    {result.gps_lng?.toFixed(4)}
+                                  </p>
+                                )}
+                              </div>
+                              <ExternalLink
+                                className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0"
+                                strokeWidth={2}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
 
                   {/* Table Section */}
@@ -532,11 +652,11 @@ export function ChatWorkspace() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) =>
-                    e.key === "Enter" && !isUploading && handleSend()
+                    e.key === "Enter" && !isUploading && !isSending && handleSend()
                   }
                   placeholder="Ask about evidence, request analysis, or search for specific details..."
                   className="w-full pl-5 pr-16 py-3.5 bg-gray-50 dark:bg-gray-900 text-black dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition-all shadow-md border border-gray-200 dark:border-gray-800"
-                  disabled={isUploading}
+                  disabled={isUploading || isSending}
                 />
                 <button
                   onClick={() => setShowUploadDropdown(true)}
@@ -548,12 +668,14 @@ export function ChatWorkspace() {
               </div>
               <button
                 onClick={handleSend}
-                disabled={
-                  (!input.trim() && uploadedMedia.length === 0) || isUploading
-                }
+                disabled={!input.trim() || isUploading || isSending}
                 className="flex items-center justify-center w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
               >
-                <Send className="w-5 h-5" strokeWidth={2} />
+                {isSending ? (
+                  <div className="animate-spin h-5 w-5 border-2 border-white dark:border-black border-t-transparent rounded-full" />
+                ) : (
+                  <Send className="w-5 h-5" strokeWidth={2} />
+                )}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ZoomIn, ZoomOut, Maximize2, RotateCw } from "lucide-react";
+import { convertGoogleDriveImageUrl } from "@/utils/googleDrive";
 
 interface ImageViewerProps {
   src: string;
@@ -10,6 +11,9 @@ interface ImageViewerProps {
 export function ImageViewer({ src, alt, title }: ImageViewerProps) {
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
+
+  // Convert Google Drive URLs to direct view format
+  const imageSrc = convertGoogleDriveImageUrl(src);
 
   const handleZoomIn = () => {
     setScale((prev) => Math.min(prev + 0.25, 3));
@@ -39,7 +43,7 @@ export function ImageViewer({ src, alt, title }: ImageViewerProps) {
       {/* Image Container */}
       <div className="relative bg-gray-900 flex items-center justify-center min-h-[400px] max-h-[70vh] overflow-auto">
         <img
-          src={src}
+          src={imageSrc}
           alt={alt || "Evidence image"}
           className="max-w-full max-h-[70vh] object-contain transition-transform duration-300"
           style={{
